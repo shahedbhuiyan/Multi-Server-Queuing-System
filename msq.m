@@ -1,0 +1,119 @@
+function msq(n,pa,ps)
+rand('state',0)
+
+disp('This is a Multi server queue')
+
+
+S = struct('S',0);
+Server = [S,S,S,S,S];
+% delay
+cDelay=0;
+
+% customers served
+customersServed=0;
+
+% the queue
+Queue=[]; % initially empty
+
+nextEvent=0; % 0 - arrival 1 - departure
+
+% initially there are no departure and arrival scheduled
+nextArrival=realmax;
+nextDeparture=realmax;
+
+% simulation time
+sTime=0;
+
+
+% we generate the initial arrival only
+% service rates will be generated only when they are entering in the service
+nextArrival=exponential_rand(5);
+ 
+
+initialNode = struct('Cname',0,'NoOfService',0);
+QueueD = [initialNode];
+temp = QueueD(1);
+while customersServed<n
+	% decide the next event
+	if nextArrival<nextDeparture
+		nextEvent=0;	
+	else
+		nextEvent=1;
+	end
+	
+	prevTime=sTime;
+	
+	if nextEvent==0 % next event arrival
+		currentTime=nextArrival;
+        if serverBusy ~=0 && currentTime-prevTime ~=0
+            rectangle('Position',[prevTime 0 currentTime-prevTime serverBusy],'FaceColor',[0 1 1])
+        end
+        disp('Arrival At:')
+		nextArrival
+        
+		% check if the server is busy or not
+        j = 1;
+        for i = 1:length(Server)
+            if Server(i).S == 0
+                rVal = uniform_distribution(2,2.8);
+                nextDeparture = currentTime+rVal;
+                Server(i).S = 1;
+                j = j + 1;
+            end
+        end
+        
+        if j == 1
+            Queue=[Queue currentTime];
+        end
+        
+		% generate next arrival
+		nextArrival=currentTime+exponential_rand(5);
+		
+	else
+		currentTime=nextDeparture;
+		if serverBusy ~=0 && currentTime-prevTime ~=0
+            rectangle('Position',[prevTime 0 currentTime-prevTime serverBusy],'FaceColor',[1 0 1])
+        end
+		disp('Departure At:')
+		nextDeparture
+		nextDeparture=realmax;
+		% for departure check the queue status
+		if length(Queue) == 0
+			for k = 1:length(Server)
+                Server(k).S = 0;
+            end
+        else
+            for k = 1:length(Server)
+                if Server(k).S == 0
+                    if length(QueueD)>0
+                        for i = 1:length(QueueD)
+                           if QueueD(i).Cname == currentTime
+                               left = 2/QueueD(i).NoOfService+1;
+                               right = 2.8/ QueueD(i).NoOfService+1;
+                               rVal1 = uniform_distribution(left,right);
+                               nextDeparture=currentTime+rVal1;
+                               prob = (0.2/QueueD(i).NoOfService+1);
+                               if getUProbability(rVal1)<prob
+                                   QueueD(i).NoOfService = QueueD(i).NoOfService + 1;
+                                   Queue=[Queue currentTime];
+                               end
+                           end
+                        end
+                    else
+                        nextDeparture=currentTime+uniform_distribution(2,2.8);
+                        jobDeparts=Queue(1);
+                        Queue=Queue(2:length(Queue)); % considering FIFO
+                        cDelay=cDelay+(currentTime-jobDeparts);
+                    end
+                end
+            end
+        end
+		customersServed=customersServed+1;	
+	end
+	sTime=currentTime;
+end
+disp('Average Delay:')
+disp(cDelay/n)
+
+axis([0 sTime+1 0 2])
+end
